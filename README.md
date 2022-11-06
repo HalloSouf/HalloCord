@@ -1,0 +1,2 @@
+# HalloCord
+Discord api library
