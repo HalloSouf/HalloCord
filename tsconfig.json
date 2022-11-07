@@ -15,7 +15,7 @@
 
     // Modules
     "baseUrl": ".",
-    "module": "ESNext",
+    "module": "CommonJS",
     "moduleResolution": "Node",
     "rootDir": "./src",
 
@@ -42,5 +42,7 @@
 
     // Completeness
     "skipDefaultLibCheck": false
-  }
+  },
+  "include": ["./src"],
+  "exclude": ["node_modules"]
 }
