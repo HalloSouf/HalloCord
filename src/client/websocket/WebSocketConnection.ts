@@ -3,171 +3,145 @@ import { inflateSync } from 'node:zlib';
 import { Buffer } from 'buffer';
 import WebSocket, { CloseEvent, ErrorEvent, type Event, type MessageEvent } from 'ws';
 import { Status, Opcodes } from '../../utils/Constants';
+import Intents from '../../utils/Intents';
 import type { IEvent, IHeartbeatPayload } from '../../typings/events.interface';
 import type WebSocketManager from './WebSocketManager';
-import type Client from '../Client';
 
 class WebSocketConnection extends EventEmitter {
   private ws: WebSocket | null;
-  private readonly sequence: number;
-  private client: Client;
-  private heartbeatInterval?: NodeJS.Timeout | null;
-  public lastPingTimestamp: number;
-  public gateway?: string;
+  private sequence: number;
+  private manager: WebSocketManager;
+  private heartbeatInterval?: NodeJS.Timeout;
+  public lastPing: number;
+  public gateway: string;
   public status: string;
 
   constructor(manager: WebSocketManager, gateway: string) {
     super();
 
-    /**
-     * WebSocket instance
-     */
     this.ws = null;
 
-    this.client = manager.client;
-
-    /**
-     * The last timestamp when the app have sent a ping to the Discord gateway
-     */
-    this.lastPingTimestamp = 0;
-
-    /**
-     * Current sequence of the websocket
-     */
-    this.sequence = -1;
-
-    /**
-     * Current status of the websocket
-     */
-    this.status = Status.Idle;
-
-    this.connect(gateway);
-  }
-
-  /**
-   * Establish websocket connection
-   * @param gateway Discord gateway
-   */
-  public connect(gateway?: string): boolean {
-    if (this.ws) {
-      console.debug('Can not establish connection. There is already one which exists.');
-      return false;
-    }
-
-    if (!gateway) {
-      console.debug(`Can not establish connection. Tried to connect to invalid gateway: ${gateway}`);
-      return false;
-    }
+    this.manager = manager;
 
     this.gateway = gateway;
-    console.debug(`Connecting to gateway: ${gateway}`);
 
-    const ws = this.ws = new WebSocket(gateway);
-    ws.onopen = this.onOpen.bind(this);
-    ws.onmessage = this.onMessage.bind(this);
-    ws.onerror = this.onError.bind(this);
-    ws.onclose = this.onClose.bind(this);
+    this.lastPing = 0;
+    
+    this.sequence = -1;
 
+    this.status = Status.Idle;
+
+    this.connect();
+  }
+
+  private connect(): boolean {
+    if (this.ws) {
+      this.manager.debug('There is already a connection established which exists.');
+      return false;
+    }
+
+    if (!this.gateway) {
+      this.manager.debug(`Could not connect to gateway ${this.gateway}`);
+      return false;
+    }
+
+    this.manager.debug(`Connecting to gateway ${this.gateway}`);
+
+    this.ws = new WebSocket(this.gateway);
+    this.ws.onopen = this.onOpen.bind(this);
+    this.ws.onmessage = this.onMessage.bind(this);
+    this.ws.onerror = this.onError.bind(this);
+    this.ws.onclose = this.onClose.bind(this);
     this.status = Status.Connecting;
 
     return true;
   }
 
-  private send(data: Object): void {
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-      return console.debug('There is no available websocket open!');
-    }
-
-    return this.ws.send(JSON.stringify(data));
+  private onError(event: ErrorEvent): void {
+    this.manager.debug(`Error occurred while connected with gateway ${event.target.url}: ${event.error}`);
   }
 
-  /**
-   * Destruct packet events from Discord gateway
-   * @param packet Packet event
-   * @private
-   */
-  private destructPacket(packet: IEvent) {
-    console.log(packet);
-    switch (packet.op) {
-      case Opcodes.Hello:
-        this.heartbeat((packet as IEvent<IHeartbeatPayload>).d.heartbeat_interval);
-        break;
-      case Opcodes.HeartbeatACK:
-        this.heartbeatAck();
-        break;
-      case Opcodes.Heartbeat:
-        this.heartbeat();
-        break;
-    }
-  }
-
-  private heartbeatAck(): void {
-    this.client.pong(this.lastPingTimestamp);
-  }
-
-  private heartbeat(interval?: number): void {
-    if (interval && !isNaN(interval)) {
-      if (interval === -1 && this.heartbeatInterval) {
-        console.debug('Unset heartbeat interval');
-        this.client.removeInterval(this.heartbeatInterval);
-        this.heartbeatInterval = null;
-        return;
-      }
-
-      console.debug('Set heartbeat interval');
-      this.heartbeatInterval = this.client.addInterval(() => this.heartbeat(), interval);
-      return;
-    }
-
-    console.debug(`Sending heartbeat with sequence ${this.sequence}`);
-    this.lastPingTimestamp = Date.now();
-    return this.send({
-      op: 1,
-      d: this.sequence
-    });
-  }
-
-  /**
-   * WebSocket onOpen handler
-   * @param event WebSocket event
-   * @private
-   */
   private onOpen(event: Event): void {
-    if (event) this.gateway = event.target.url;
-    console.debug(`Connected to the gateway: ${event.target.url}`);
+    this.manager.debug(`Connection established with gateway ${event.target.url}`);
+    this.identify();
   }
 
   private onClose(event: CloseEvent): void {
-    console.debug('Connection closed...', event);
+    this.manager.debug(`Connection closed with gateway ${event.target.url} (${event.code} ${event.reason})`);
   }
 
-  /**
-   * WebSocket onMessage handler
-   * @param event WebSocket event
-   * @private
-   */
   private onMessage(event: MessageEvent): void {
     let data;
     if (event.data instanceof ArrayBuffer) {
-      data = Buffer.from(new Uint8Array(<ArrayBuffer>event.data));
+      data = Buffer.from(new Uint8Array(event.data as ArrayBuffer));
     } else if (event.data instanceof Buffer) {
-      data = inflateSync(<Buffer>event.data).toString();
+      data = inflateSync(event.data as Buffer).toString();
     } else {
-      data = JSON.parse(<string>event.data);
+      data = JSON.parse(event.data as string);
     }
 
     return this.destructPacket(data);
   }
 
-  /**
-   * WebSocket onError handler
-   * @param event WebSocket event
-   * @private
-   */
-  private onError(event: ErrorEvent): void {
-    console.debug(`Error has occurred while connecting to gateway: ${event.message}`);
+  private destructPacket(packet: IEvent) {
+    this.manager.debug(`Received opcode ${packet.op}`);
+    switch (packet.op) {
+    case Opcodes.Hello:
+      this.heartbeat((packet as IEvent<IHeartbeatPayload>).d.heartbeat_interval);
+      break;
+    case Opcodes.HeartbeatACK:
+      this.acknowledgeHeartbeat();
+      break;
+    case Opcodes.Heartbeat:
+      this.heartbeat();
+      break;
+    }
   }
 
+  private send(data: Record<string, unknown>): void {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) 
+      return this.manager.debug('There is no connection available.');
+
+    this.manager.debug(`Sending data over websocket: ${JSON.stringify(data)}`);
+    return this.ws.send(JSON.stringify(data));
+  }
+
+  private heartbeat(interval?: number): void {
+    if (interval && !isNaN(interval)) {
+      if (interval === -1 && this.heartbeatInterval) {
+        this.manager.client.removeInterval(this.heartbeatInterval);
+        this.heartbeatInterval = undefined;
+        return;
+      }
+
+      this.heartbeatInterval = this.manager.client.addInterval(() => this.heartbeat(), interval);
+      return;
+    }
+
+    this.manager.debug(`Sending heartbeat with sequence ${this.sequence}`);
+    this.lastPing = Date.now();
+    return this.send({ op: 1, d: this.sequence });
+  }
+
+  private acknowledgeHeartbeat(): void {
+    this.manager.debug(`Last heartbeat acknowledged: ${this.manager.heartbeatAck ? 'Yes' : 'No'}`);
+    this.manager.pong(this.lastPing);
+  }
+
+  private identify(): void {
+    return this.send({
+      op: 2,
+      d: {
+        token: this.manager.client.token,
+        properties: {
+          os: 'linux',
+          browser: 'hallocord',
+          device: 'hallocord'
+        },
+        intents: new Intents(this.manager.client.options.intents).bits
+      }
+    });
+  }
 }
 
 export default WebSocketConnection;

@@ -1,3 +1,7 @@
+export const Endpoints = {
+  gateway: 'wss://gateway.discord.gg'
+};
+
 export const Status = {
   Ready: 'Ready',
   Connecting: 'Connecting',

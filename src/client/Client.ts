@@ -1,42 +1,28 @@
 import EventEmitter from 'node:events';
 import WebSocketManager from './websocket/WebSocketManager';
+import type { ClientOptions } from '../typings/client.interface';
 
 class Client extends EventEmitter {
   private ws: WebSocketManager;
-  private pings: Array<number>;
+  public token?: string;
   public intervals: Set<NodeJS.Timeout>;
+  public options: ClientOptions;
 
-  constructor() {
+  constructor(options: ClientOptions) {
     super();
 
-    /**
-     * WebSocket manager
-     */
+    this.options = options;
+
     this.ws = new WebSocketManager(this);
 
-    /**
-     * Save the last 2 pings
-     */
-    this.pings = [];
-
-    /**
-     * Set global client interval
-     */
     this.intervals = new Set();
   }
 
-  public login() {
+  public authorize(token: string) {
+    if (!token) throw new Error('Provided invalid token');
+    this.token = token;
+    this.emit('debug', `Provided token: ${token.substring(0, 5)}`);
     this.ws.connect('wss://gateway.discord.gg/?v=10&encoding=json');
-  }
-
-  /**
-   * Pong when receiving heartbeatAck
-   * @param timestamp
-   */
-  public pong(timestamp: number): void {
-    this.pings.unshift(Date.now() - timestamp);
-    if (this.pings.length > 2) this.pings.length = 2;
-    this.ws.heartbeatAck = true;
   }
 
   public addInterval(fn: () => void, interval: number): NodeJS.Timeout {
