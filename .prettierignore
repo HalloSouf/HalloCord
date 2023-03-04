@@ -1,0 +1,13 @@
+# Dependencies
+node_modules/
+
+# Miscellaneous
+.DS_Store
+
+# Production
+build/
+
+# Package manager
+pnpm-lock.yaml
+package-lock.json
+yarn.lock

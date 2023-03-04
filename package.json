@@ -1,21 +1,47 @@
 {
-  "name": "hallocord",
-  "version": "1.0.0",
-  "description": "Discord api library",
-  "main": "src/app.ts",
-  "repository": "https://github.com/HalloSouf/HalloCord.git",
-  "author": "HalloSouf",
-  "license": "GPL-3.0-or-later",
-  "devDependencies": {
-    "@types/node": "^18.11.9",
-    "@types/ws": "^8.5.3",
-    "@typescript-eslint/eslint-plugin": "^5.42.0",
-    "@typescript-eslint/parser": "^5.42.0",
-    "eslint": "^8.27.0",
-    "ts-node": "^10.9.1",
-    "typescript": "^4.8.4"
-  },
-  "dependencies": {
-    "ws": "^8.10.0"
-  }
+	"name": "hallocord",
+	"version": "1.0.0",
+	"description": "NodeJS library which communicated with the Discord API.",
+	"private": true,
+	"license": "MIT",
+	"main": "build/index.js",
+	"types": "build/index.d.ts",
+	"files": [
+		"/build"
+	],
+	"directories": {
+		"lib": "src"
+	},
+	"keywords": [
+		"discord",
+		"api",
+		"nodejs",
+		"library"
+	],
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/HalloSouf/HalloCord.git"
+	},
+	"bugs": {
+		"url": "https://github.com/HalloSouf/hallocord/issues"
+	},
+	"author": "HalloSouf",
+	"scripts": {
+		"build": "tsc --build",
+		"lint": "prettier --plugin-search-dir . --check . && eslint .",
+		"format": "prettier --plugin-search-dir . --write ."
+	},
+	"devDependencies": {
+		"@types/node": "^18.11.9",
+		"@types/ws": "^8.5.3",
+		"@typescript-eslint/eslint-plugin": "^5.42.0",
+		"@typescript-eslint/parser": "^5.42.0",
+		"eslint": "^8.27.0",
+		"prettier": "^2.8.4",
+		"ts-node": "^10.9.1",
+		"typescript": "^4.8.4"
+	},
+	"dependencies": {
+		"ws": "^8.10.0"
+	}
 }
