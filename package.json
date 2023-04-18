@@ -3,7 +3,6 @@
 	"version": "1.0.0",
 	"description": "NodeJS library which communicated with the Discord API.",
 	"private": true,
-	"license": "MIT",
 	"main": "build/index.js",
 	"types": "build/index.d.ts",
 	"files": [
@@ -26,6 +25,7 @@
 		"url": "https://github.com/HalloSouf/hallocord/issues"
 	},
 	"author": "HalloSouf",
+	"license": "gpl-3.0",
 	"scripts": {
 		"build": "tsc --build",
 		"lint": "prettier --plugin-search-dir . --check . && eslint .",
