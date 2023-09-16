@@ -15,4 +15,4 @@ This repository households the source code of the HalloCord package.
 
 ## License 📜
 
-This project is licensed under the Public General Apache 2.0 License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the Public General Apache 3.0 License - see the [LICENSE](LICENSE) file for details.
